@@ -1,0 +1,12 @@
+# QuantConnect Lean CLI artifacts
+.lean/
+data/
+storage/
+
+# Python environment & cache
+__pycache__/
+*.py[cod]
+.env
+venv/
+.venv/
+.ipynb_checkpoints/
