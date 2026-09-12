@@ -10,6 +10,7 @@ The Wheel strategy is a two-phase cyclic process designed to generate consistent
 
 The diagram below illustrates the perpetual loop of selling volatility:
 
+'''mermaid
 graph TD
     A[Start: Cash in Account] -->|Identify Oversold DJI Stock| B(Phase 1: Sell Cash-Secured Put)
     B --> C{Expiration Date Reached}
@@ -30,7 +31,7 @@ graph TD
     
     classDef default fill:#1f2937,stroke:#3b82f6,stroke-width:2px,color:#fff;
     classDef highlight fill:#3b82f6,stroke:#1e3a8a,stroke-width:2px,color:#fff;
-    class A,D,I highlight;
+    class A,D,I highlight;'''
 
 *Figure 1: Conceptual overview showing the transition between Cash-Secured Puts (Phase 1) and Covered Calls (Phase 2), highlighting the role of premiums and assignment risk.*
 
@@ -45,6 +46,7 @@ This algorithm dynamically manages capital and optimizes for yield-per-exposure 
 
 The diagram below outlines the main stages of development and the execution pipeline of the live algorithm:
 
+'''mermaid
 flowchart LR
     subgraph Data & Signal
     A[(DJI Universe)] --> B[Calculate 14-Day RSI]
@@ -69,7 +71,7 @@ flowchart LR
     end
 
     classDef dark fill:#2d3748,stroke:#4fd1c5,stroke-width:2px,color:#fff;
-    class A,B,C,D,E,F,G,H,I,J,K dark;
+    class A,B,C,D,E,F,G,H,I,J,K dark;'''
 
 *Figure 2: Architecture flow diagram showing the modular components of the system: Universe Selection, Signal Generation (Mean Reversion), Greek/DTE Optimization, Position/Risk Management, and the final automated execution loop.*
 
