@@ -7,6 +7,9 @@ class AlgorithmicWheelDJI(QCAlgorithm):
         self.SetEndDate(2026, 1, 1)
         self.SetCash(1000000)  # $1,000,000 portfolio base capital
 
+        # Define our Benchmark as the DJI rather than SP500
+        self.SetBenchmark("DIA")
+
         # Define Margin Model to prevent default immediate forced liquidations
         self.Portfolio.MarginCallModel = MarginCallModel.Null
 
@@ -14,12 +17,12 @@ class AlgorithmicWheelDJI(QCAlgorithm):
         self.target_put_delta = -0.30
         self.target_call_delta = 0.30
         self.rsi_period = 14
-        self.max_allocation_per_stock = 0.30     # Max 10% of portfolio value per ticker
-        self.max_portfolio_stock_cap = 3.0     # MAX 50% HOLDINGS RULE: Total stock holdings + put assignments <= 50%
+        self.max_allocation_per_stock = 0.30     # Max 30% of portfolio value per ticker
+        self.max_portfolio_stock_cap = 3.0     # MAX 3x HOLDINGS RULE: Total stock holdings + put assignments <= 50%
         self.min_margin_buffer = 0.20            # Keep 20% margin cushion to prevent margin warnings
         self.iv_lookback_days = 252              # Standard 1-year window for IV Rank
-        self.max_calls_per_stock = 4             # Max call cycles before liquidating underwater stock
-        self.stop_loss_multiplier = 10        # Stop loss: buy back short puts if mark >= 3x entry premium
+        self.max_calls_per_stock = 2             # Max call cycles before liquidating underwater stock
+        self.stop_loss_multiplier = 5        # Stop loss: buy back short puts if mark >= 5x entry premium
 
         # Asset tracking structures
         self.equity_symbols = {}                 # Maps ticker string -> Equity Symbol Object
