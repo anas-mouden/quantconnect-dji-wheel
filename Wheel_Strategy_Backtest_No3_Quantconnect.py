@@ -109,6 +109,14 @@ class AlgorithmicWheelDJI(QCAlgorithm):
                     self.stock_entry_date.pop(orderEvent.Symbol, None)
                     self.call_count.pop(orderEvent.Symbol, None)
 
+            # A covered call that actually FILLED (sold to open) counts as one completed cycle
+            elif (security and security.Type == SecurityType.Option
+                  and orderEvent.Symbol.ID.OptionRight == OptionRight.Call
+                  and orderEvent.FillQuantity < 0):
+                underlying = orderEvent.Symbol.Underlying
+                if underlying in self.call_count:
+                    self.call_count[underlying] += 1
+
     def OnMarginCallWarning(self):
         """Cancels open orders or liquidates worst performing options on margin warning."""
         self.Warning(f"Margin Call Warning! Cash: {self.Portfolio.Cash}, Margin Remaining: {self.Portfolio.MarginRemaining}")
@@ -310,29 +318,38 @@ class AlgorithmicWheelDJI(QCAlgorithm):
                         self.Liquidate(symbol)
 
     def ManageCoveredCalls(self):
-        """Monitors assigned stock lots: liquidates stock if max calls executed, else sells next call."""
+        """Monitors assigned stock lots: sells a call when none is open; liquidates the stock only
+        after max_calls_per_stock calls have filled and no call is open or pending."""
+        open_orders = self.Transactions.GetOpenOrders()
         for symbol, holding in list(self.Portfolio.items()):
             if holding.Symbol.SecurityType == SecurityType.Equity and holding.Quantity >= 100:
                 ticker = symbol.Value
-                current_calls_sold = self.call_count.get(symbol, 0)
 
-                if current_calls_sold >= self.max_calls_per_stock:
+                # Only short CALLS count (a short put on the same stock must not block a covered call),
+                # and a pending call order counts so we never stack duplicate call orders.
+                has_active_call = any(
+                    h.Symbol.SecurityType == SecurityType.Option and
+                    h.Symbol.Underlying == symbol and
+                    h.Symbol.ID.OptionRight == OptionRight.Call and
+                    h.Quantity < 0
+                    for h in self.Portfolio.Values
+                ) or any(
+                    o.Symbol.SecurityType == SecurityType.Option and
+                    o.Symbol.Underlying == symbol and
+                    o.Symbol.ID.OptionRight == OptionRight.Call
+                    for o in open_orders
+                )
+                if has_active_call:
+                    continue
+
+                # Never liquidate the shares while a call is still open (that would leave it uncovered)
+                if self.call_count.get(symbol, 0) >= self.max_calls_per_stock:
                     self.Liquidate(symbol)
                     self.call_count.pop(symbol, None)
                     self.stock_entry_date.pop(symbol, None)
                     continue
 
-                has_active_call = any(
-                    h.Symbol.SecurityType == SecurityType.Option
-                    and h.Symbol.Underlying == symbol
-                    and h.Quantity < 0
-                    for h in self.Portfolio.Values
-                )
-
-                if not has_active_call:
-                    success = self.SellCoveredCall(ticker, holding)
-                    if success:
-                        self.call_count[symbol] = current_calls_sold + 1
+                self.SellCoveredCall(ticker, holding)
 
     def SellCoveredCall(self, ticker, holding):
         """Sells ~0.30 Delta covered calls matching share volume via Midpoint Limit Orders."""
@@ -346,11 +363,10 @@ class AlgorithmicWheelDJI(QCAlgorithm):
 
         cost_basis = holding.AveragePrice
 
+        # Only sell calls at or above cost basis; wait for a better strike rather than lock in a loss
         calls = [x for x in chain if x.Right == OptionRight.Call and x.Strike >= cost_basis]
         if not calls:
-            calls = [x for x in chain if x.Right == OptionRight.Call]
-            if not calls:
-                return False
+            return False
 
         target_calls = [
             c for c in calls
